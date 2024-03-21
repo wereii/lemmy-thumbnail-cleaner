@@ -5,3 +5,5 @@ This is a simple program to remove old thumbnails from pict-rs and lemmy.
 I am not well versed in Rust (yet?) so this is in part also a learning project for me. I am open to any and all suggestions and improvements.
 
 **THIS COULD DESTROY YOUR DATA. USE AT YOUR OWN RISK.**
+
+Ready-made docker image will be provided once the project is in a more stable state.
