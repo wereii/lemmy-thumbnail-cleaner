@@ -1,0 +1,14 @@
+[package]
+name = "lemmy-thumbnail-cleaner"
+version = "0.1.0"
+edition = "2021"
+
+
+[features]
+default = []
+
+[dependencies]
+isahc = "1.7.2"
+postgres = "0.19.7"
+url = "2.5.0"
+
