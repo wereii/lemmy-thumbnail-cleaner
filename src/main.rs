@@ -1,11 +1,14 @@
 use isahc::http::Uri;
-use isahc::{Body, HttpClient};
+use isahc::{Body, HttpClient, ReadResponseExt};
 use std::time::Duration;
 use std::{env, iter, thread};
 
+use log::{debug, error, info, warn};
 use postgres::fallible_iterator::FallibleIterator;
 use postgres::{Client, NoTls};
 use url::Url;
+
+use env_logger;
 
 const DEFAULT_DATABASE_URI: &str = "postgres://lemmy@localhost:5432/lemmy";
 const DEFAULT_PICTRS_HOST: &str = "pictrs:8080";
@@ -26,39 +29,79 @@ macro_rules! base_thumbnail_query_fmt {
 }
 
 fn main() {
-    println!("Starting thumbnail cleaner");
+    env_logger::init();
+    info!("Starting thumbnail cleaner");
 
     // TODO: Extract local site host from database:
     // `select actor_id from site join local_site on local_site.id = site.id where local_site.id = 1;`
-    let instance_host: String = env::var("INSTANCE_HOST").expect("INSTANCE_HOST not set");
-    Url::parse(instance_host.as_str()).expect("INSTANCE_HOST is not a valid URL");
+    let instance_host_url = {
+        let value = env::var("INSTANCE_HOST").unwrap_or_else(|err| {
+            error!("INSTANCE_HOST is required, exiting! (err: {})", err);
+            std::process::exit(1);
+        });
+
+        let url = Url::parse(value.as_str()).unwrap_or_else(|err| {
+            error!("Error parsing INSTANCE_HOST URL '{}', exiting!", err);
+            std::process::exit(1);
+        });
+
+        if url.scheme() != "https" {
+            warn!("INSTANCE_HOST does not have HTTPS scheme, are you sure this is correct?");
+        }
+        url
+    };
 
     let check_interval: Duration = match env::var("CHECK_INTERVAL") {
         Ok(val) => {
-            let val = val.parse::<u64>().expect("Failed to parse CHECK_INTERVAL");
-            println!("CHECK_INTERVAL set to '{}s'", val);
+            let val: u64 = val.parse().unwrap_or_else(|err| {
+                error!("Error parsing CHECK_INTERVAL '{}', exiting!", err);
+                std::process::exit(1)
+            });
+
+            info!("CHECK_INTERVAL set to '{}' seconds", val);
             Duration::from_secs(val)
         }
         Err(_) => {
-            println!(
-                "CHECK_INTERVAL not set, using default: '{}s'",
+            info!(
+                "CHECK_INTERVAL not set, using default {} seconds",
                 CHECK_INTERVAL.as_secs()
             );
             CHECK_INTERVAL
         }
     };
 
+    let query_limit: u64 = match env::var("QUERY_LIMIT") {
+        Ok(val) => {
+            let parsed: u64 = val.parse().unwrap_or_else(|err| {
+                error!("Error parsing QUERY_LIMIT '{}', exiting!", err);
+                std::process::exit(1)
+            });
+
+            info!("QUERY_LIMIT set to '{}'", parsed);
+            parsed
+        }
+        Err(_) => {
+            info!(
+                "QUERY_LIMIT not set, using default: {}",
+                DEFAULT_QUERY_LIMIT
+            );
+            DEFAULT_QUERY_LIMIT
+        }
+    };
+
     let thumbnail_min_age_months: u64 = match env::var("THUMBNAIL_MIN_AGE_MONTHS") {
         Ok(val) => {
-            let val: u64 = val
-                .parse()
-                .expect("Failed to parse THUMBNAIL_MIN_AGE_MONTHS");
-            println!("THUMBNAIL_MIN_AGE_MONTHS set to '{}'", val);
+            let val: u64 = val.parse().unwrap_or_else(|err| {
+                error!("Error parsing THUMBNAIL_MIN_AGE_MONTHS '{}', exiting!", err);
+                std::process::exit(1)
+            });
+
+            info!("THUMBNAIL_MIN_AGE_MONTHS set to '{}'", val);
             val
         }
         Err(_) => {
-            println!(
-                "THUMBNAIL_MIN_AGE_MONTHS not set, using default: '{}'",
+            info!(
+                "THUMBNAIL_MIN_AGE_MONTHS not set, using default: {}",
                 DEFAULT_THUMBNAIL_MIN_AGE_MONTHS
             );
             DEFAULT_THUMBNAIL_MIN_AGE_MONTHS
@@ -66,22 +109,23 @@ fn main() {
     };
 
     let mut pg_client = {
-        let database_uri_env = {
-            env::var("DATABASE_URI").unwrap_or_else(|_| {
-                println!(
-                    "DATABASE_URI not set, using default: '{}'",
-                    DEFAULT_DATABASE_URI
-                );
-                DEFAULT_DATABASE_URI.to_string()
-            })
-        };
+        let database_uri_env = env::var("DATABASE_URI").unwrap_or_else(|_| {
+            warn!(
+                "DATABASE_URI not set, using default: '{}'",
+                DEFAULT_DATABASE_URI
+            );
+            DEFAULT_DATABASE_URI.to_string()
+        });
 
-        Client::connect(database_uri_env.as_str(), NoTls).expect("Failed to connect to database")
+        Client::connect(database_uri_env.as_str(), NoTls).unwrap_or_else(|err| {
+            error!("Failed to connect to database: {}", err);
+            std::process::exit(1);
+        })
     };
 
     let pictrs_host = {
         env::var("PICTRS_HOST").unwrap_or_else(|_| {
-            println!(
+            warn!(
                 "PICTRS_HOST not set, using default: '{}'",
                 DEFAULT_PICTRS_HOST
             );
@@ -101,7 +145,7 @@ fn main() {
         base_thumbnail_query_fmt!(),
         select_target = "COUNT(*)",
         interval = thumbnail_min_age_months,
-        base_host = instance_host,
+        base_host = instance_host_url.as_str(),
         query_suffix = "",
     );
 
@@ -109,98 +153,105 @@ fn main() {
         base_thumbnail_query_fmt!(),
         select_target = "thumbnail_url",
         interval = thumbnail_min_age_months,
-        base_host = instance_host,
-        query_suffix = "LIMIT ".to_owned() + DEFAULT_QUERY_LIMIT.to_string().as_str() + " ;",
+        base_host = instance_host_url.as_str(),
+        query_suffix = "LIMIT ".to_owned() + query_limit.to_string().as_str() + " ;",
     );
 
     loop {
-        println!("Checking for thumbnails to clean");
+        info!("Checking for thumbnails to clean");
 
-        {
+        let count = {
             let count_rows = pg_client
                 .query(count_query.as_str(), &[])
                 .expect("Failed to query database for count");
 
             let count: i64 = count_rows.get(0).expect("No rows returned").get(0);
-            println!(
+            info!(
                 "Database contains {} of thumbnails that can be cleaned up",
                 count
             );
+            count
+        };
+
+        if count > 0 {
+            let thumbnail_urls_rows = pg_client
+                .query(thumbnail_query.as_str(), &[])
+                .expect("Failed to query database for thumbnails");
+
+            let mut processed = 0;
+            for row in thumbnail_urls_rows {
+                let thumbnail_url = Url::parse(row.get::<usize, String>(0).as_str())
+                    .expect("Failed to parse thumbnail URL");
+
+                let thumbnail_alias = thumbnail_url.path().split("/").last().unwrap();
+                // TODO: This isn't really durable check, maybe test for valid `uuid.(png|jpg|webp)`?
+                if thumbnail_alias.len() < 36 {
+                    warn!(
+                        "Thumbnail name '{}' does not look valid, skipping!",
+                        thumbnail_alias
+                    );
+                    continue;
+                }
+
+                let mut response = http_client
+                    .post(
+                        Uri::builder()
+                            .scheme("http")
+                            .authority(pictrs_host.to_owned())
+                            .path_and_query("/internal/delete?alias=".to_owned() + thumbnail_alias)
+                            .build()
+                            .expect("Failed to build pictrs URL"),
+                        Body::empty(),
+                    )
+                    .expect("pictrs request failed");
+
+                if response.status() == 200 {
+                    debug!("pict-rs: thumbnail '{}' deleted", thumbnail_alias);
+                } else if response.status() == 404 {
+                    warn!("pict-rs: thumbnail '{}' not found?", thumbnail_alias);
+                } else {
+                    error!(
+                        "pict-rs: failed to delete thumbnail '{}'; {} - {:?}",
+                        thumbnail_alias,
+                        response.status(),
+                        response.text(),
+                    );
+                    continue;
+                }
+
+                let mut result_rows_iter = pg_client
+                    .query_raw(
+                        &("update post set thumbnail_url = null WHERE thumbnail_url = '"
+                            .to_string()
+                            + thumbnail_url.as_str()
+                            + "';"),
+                        iter::empty::<Option<i64>>(),
+                    )
+                    .expect("Database error updating thumbnail");
+
+                // this is awful, but I don't know how to exhaust the iterator without moving it into .for_each or .collect
+                while let Some(_) = result_rows_iter
+                    .next()
+                    .expect("Failed to iterate over results")
+                {}
+
+                if result_rows_iter.rows_affected().is_none() {
+                    warn!(
+                        "postgres returned no rows affected, failed to null thumbnail '{}' ?",
+                        thumbnail_alias
+                    );
+                } else {
+                    debug!("postgres: thumbnail '{}' updated to null", thumbnail_alias);
+                }
+
+                processed += 1;
+                if processed % 10 == 0 {
+                    info!("Processed {} thumbnails", processed);
+                }
+            }
+            info!("Finished iteration, processed {} thumbnails", processed);
         }
-
-        let thumbnail_urls_rows = pg_client
-            .query(thumbnail_query.as_str(), &[])
-            .expect("Failed to query database for thumbnails");
-
-        for row in thumbnail_urls_rows {
-            let thumbnail_url = Url::parse(row.get::<usize, String>(0).as_str())
-                .expect("Failed to parse thumbnail URL");
-
-            let thumbnail_alias = thumbnail_url.path().split("/").last().unwrap();
-            // TODO: This isn't really durable check, maybe test for valid `uuid.(png|jpg|webp)`?
-            if thumbnail_alias.len() < 36 {
-                println!(
-                    "Thumbnail name '{}' does not look valid, skipping!",
-                    thumbnail_alias
-                );
-                continue;
-            }
-
-            let response = http_client
-                .post(
-                    Uri::builder()
-                        .scheme("http")
-                        .authority(pictrs_host.to_owned())
-                        .path_and_query("/internal/delete?alias=".to_owned() + thumbnail_alias)
-                        .build()
-                        .expect("Failed to build pictrs URL"),
-                    Body::empty(),
-                )
-                .expect("pictrs request failed");
-
-            if response.status() == 200 {
-                println!("pict-rs: thumbnail '{}' deleted", thumbnail_alias);
-            } else {
-                println!(
-                    "pict-rs: failed to delete thumbnail '{}'; status: {}",
-                    thumbnail_alias,
-                    response.status()
-                );
-                continue;
-            }
-
-            let mut result_rows_iter = pg_client
-                .query_raw(
-                    &("update post set thumbnail_url = null WHERE thumbnail_url = '".to_string()
-                        + thumbnail_url.as_str()
-                        + "';"),
-                    iter::empty::<Option<i64>>(),
-                )
-                .expect("Failed to update database");
-
-            // this is awful, but I don't know how to exhaust the iterator without moving it into .for_each or .collect
-            while let Some(_) = result_rows_iter
-                .next()
-                .expect("Failed to iterate over results")
-            {}
-
-            if result_rows_iter.rows_affected().is_none() {
-                println!(
-                    "postgres: failed to null thumbnail '{}', no rows affected?",
-                    thumbnail_url
-                );
-            } else {
-                println!(
-                    "postgres: thumbnail '{}' updated to null",
-                    thumbnail_alias
-                );
-            }
-        }
-
-        println!(
-            "Finished cleaning up thumbnails, sleeping for {}s",
-            check_interval.as_secs()
-        );
+        info!("Sleeping for {}s", check_interval.as_secs());
         thread::sleep(check_interval);
     }
 }
