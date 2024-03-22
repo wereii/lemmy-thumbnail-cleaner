@@ -32,7 +32,10 @@ services:
       #- QUERY_LIMIT=100
 ```
 
-Pict-rs needs to be configured with api key (`PICTRS__SERVER__API_KEY`), otherwise the endpoint required for this cleaner is not accessible!
+⚠️ **Only pict-rs 0.5+ can be used, older versions do not implement required API endpoints!** ⚠️
+
+Pict-rs also needs to be configured with api key (`PICTRS__SERVER__API_KEY`), otherwise the endpoint required for this cleaner is not accessible!
+
 
 ## Configuration
 
