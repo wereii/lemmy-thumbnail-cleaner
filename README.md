@@ -71,12 +71,19 @@ You should tweak it to fit the performance of your infrastructure.
 
 When there is a lot (10k+) that can be cleaned up you should reduce the `CHECK_INTERVAL` (5-15s) and then
 increase `QUERY_LIMIT` (~500) to speed up the process.
-Keep in mind the program is intentionally single-threaded so increasing `QUERY_LIMIT` too much will keep the program continually hitting
+Keep in mind the program is intentionally single-threaded so increasing `QUERY_LIMIT` too much will keep the program
+continually hitting
 both pict-rs and postgres for longer.
 
 Once there is less (hundreds) you can increase the `CHECK_INTERVAL` to hours or days as there won't be that much new
 thumbnails old enough (but that depends on your traffic).  
 I would personally expect this to run once or twice a day at that point, with query limit of around the 300.
+
+# Notes
+
+- Backblaze B2 - When the bucket lifecycle is configured to `Keep Only Last Version`, the old versions are not deleted
+  immediately but hidden instead and deleted after 24h.  
+  So don't be surprised if the bucket size doesn't change immediately.
 
 # Disclaimer
 
