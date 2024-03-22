@@ -55,12 +55,12 @@ services:
 - `THUMBNAIL_MIN_AGE_MONTHS` - The minimum age of a thumbnail in months before it is considered for deletion.  
   Default is `3` months.
 
-- `CHECK_INTERVAL` - The interval in seconds between checks for old thumbnails.  
+- `CHECK_INTERVAL` - The interval in seconds the program sleeps between checks.
   Default is `300`. The main use is to give other services breathing room and not keep hitting them constantly with
   requests.
 
 - `QUERY_LIMIT` - The maximum number of posts to get from postgres in one query and thus the maximum number of
-  thumbnails to check in one check interval.  
+  thumbnails to delete in one check interval.  
   Default is `100`.
     - Increasing this has direct impact on postgres as it has to return more rows.
     - It will also increase memory usage of the cleaner as it keeps the rows in memory until processed (though this
