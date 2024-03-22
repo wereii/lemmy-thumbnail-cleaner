@@ -13,7 +13,7 @@ use env_logger;
 const DEFAULT_THUMBNAIL_MIN_AGE_MONTHS: u64 = 3;
 const DEFAULT_QUERY_LIMIT: u64 = 300;
 
-const CHECK_INTERVAL: Duration = Duration::from_secs(300);
+const DEFAULT_CHECK_INTERVAL: Duration = Duration::from_secs(300);
 
 // "Runtime" formatting :tm:
 macro_rules! base_thumbnail_query_fmt {
@@ -62,9 +62,9 @@ fn main() {
         Err(_) => {
             info!(
                 "CHECK_INTERVAL not set, using default {} seconds",
-                CHECK_INTERVAL.as_secs()
+                DEFAULT_CHECK_INTERVAL.as_secs()
             );
-            CHECK_INTERVAL
+            DEFAULT_CHECK_INTERVAL
         }
     };
 
