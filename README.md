@@ -83,8 +83,8 @@ I would personally expect this to run once or twice a day at that point, with qu
 
 # Notes
 
-- Backblaze B2 - When the bucket lifecycle is configured to `Keep Only Last Version`, the old versions are not deleted
-  immediately but hidden instead and deleted after 24h.  
+- Backblaze B2 - When the bucket lifecycle is configured to `Keep Only Last Version`, the [old versions are not deleted
+  immediately but hidden instead](https://www.backblaze.com/blog/backblaze-b2-lifecycle-rules/) and deleted after 24h.  
   So don't be surprised if the bucket size doesn't change immediately.
 - Results: TBA
     - I am still waiting for B2 to clean up the deleted (hidden) files but as of now, running the cleaner for a whole
