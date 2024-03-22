@@ -32,6 +32,8 @@ services:
       #- QUERY_LIMIT=100
 ```
 
+Pict-rs needs to be configured with api key (`PICTRS__SERVER__API_KEY`), otherwise the endpoint required for this cleaner is not accessible!
+
 ## Configuration
 
 #### Required Environment Variables
