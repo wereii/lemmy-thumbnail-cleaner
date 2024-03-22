@@ -50,7 +50,7 @@ services:
 
 #### Optional Environment Variables
 
-- `RUST_LOG` - Controls logging level, `debug` will also print the thumbnail ids being deleted (lots of line).  
+- `RUST_LOG` - Controls logging level, `debug` will also print the thumbnail ids being deleted (lots of lines).  
   Without this the default level is `warn`.
 
 - `THUMBNAIL_MIN_AGE_MONTHS` - The minimum age of a thumbnail in months before it is considered for deletion.  
