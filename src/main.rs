@@ -106,6 +106,23 @@ fn main() {
         }
     };
 
+    // if we should delete the database entry if pict-rs returns 404
+    let delete_on_not_found: bool = match env::var("DELETE_ON_NOT_FOUND") {
+        Ok(val) => {
+            if val == "true" {
+                info!("DELETE_ON_NOT_FOUND set to 'true', will delete database entries on 404 errors from pict-rs");
+                true
+            } else {
+                warn!("DELETE_ON_NOT_FOUND is not exactly 'true', ignoring");
+                false
+            }
+        }
+        Err(_) => {
+            info!("DELETE_ON_NOT_FOUND not set, using default: false");
+            false
+        }
+    };
+
     let mut pg_client = {
         let database_dsn = env::var("POSTGRES_DSN").unwrap_or_else(|_| {
             error!(
@@ -207,6 +224,10 @@ fn main() {
                     debug!("pict-rs: thumbnail '{}' deleted", thumbnail_alias);
                 } else if response.status() == 404 {
                     warn!("pict-rs: thumbnail '{}' not found?", thumbnail_alias);
+                    if delete_on_not_found == false {
+                        info!("Skipping database delete for not-found thumbnail '{}'", thumbnail_alias);
+                        continue;
+                    }
                 } else {
                     error!(
                         "pict-rs: failed to delete thumbnail '{}'; {} - {:?}",
@@ -234,7 +255,7 @@ fn main() {
                     .expect("Failed to iterate over results")
                 {}
 
-                if result_rows_iter.rows_affected().is_none() {
+                if result_rows_iter.rows_affected().expect("rows_affected shouldn't be None") == 0 {
                     warn!(
                         "postgres returned no rows affected, failed to null thumbnail '{}' ?",
                         thumbnail_alias

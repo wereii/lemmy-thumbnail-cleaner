@@ -70,6 +70,13 @@ Pict-rs needs to be configured with api key (`PICTRS__SERVER__API_KEY`), otherwi
     - It will also increase memory usage of the cleaner as it keeps the rows in memory until processed (though this
       shouldn't have too big of an impact).
 
+- `DELETE_ON_NOT_FOUND` - If set to `true` the cleaner will delete the thumbnail even if pict-rs returns 404 (not found)
+  when trying to delete it.  
+  Default is `false`.
+    - **Warning: This can leave "dead" thumbnails in pict-rs that are not associated with any post!**
+    - You should only set this if you are sure that the thumbnail can't be anywhere else (e.g. in some other pict-rs
+      instance).
+
 The `CHECK_INTERVAL` and `QUERY_LIMIT` is what controls how demanding the cleaner is on the database and pict-rs.
 You should tweak it to fit the performance of your infrastructure.
 
