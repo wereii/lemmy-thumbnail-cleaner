@@ -1,13 +1,14 @@
 # Lemmy Thumbnail Cleaner
 
-This is a simple program to remove old thumbnails from pict-rs and lemmy.
+This is a simple program to remove old thumbnails from [pict-rs](https://git.asonix.dog/asonix/pict-rs)
+and [lemmy](https://github.com/LemmyNet/lemmy).
 
 It will periodically check the lemmy database for posts that are older than given amount of months and instruct pict-rs
 to drop the thumbnail for that post.
 
 ## Usage
 
-This program requires connection to the lemmy postgres database and pict-rs HTTPs service.
+This program requires connection to the lemmy postgres database and pict-rs HTTP service.
 The expected deployment is as container/service alongside the pict-rs and lemmy postgres services.
 
 Edit the lemmy `docker-compose.yml` to include this service:
@@ -58,6 +59,7 @@ services:
 - `CHECK_INTERVAL` - The interval in seconds the program sleeps between checks.
   Default is `300`. The main use is to give other services breathing room and not keep hitting them constantly with
   requests.
+    - **Setting this to `0` will make the program run once and then exit.**
 
 - `QUERY_LIMIT` - The maximum number of posts to get from postgres in one query and thus the maximum number of
   thumbnails to delete in one check interval.  
@@ -84,6 +86,11 @@ I would personally expect this to run once or twice a day at that point, with qu
 - Backblaze B2 - When the bucket lifecycle is configured to `Keep Only Last Version`, the old versions are not deleted
   immediately but hidden instead and deleted after 24h.  
   So don't be surprised if the bucket size doesn't change immediately.
+- Results: TBA
+    - I am still waiting for B2 to clean up the deleted (hidden) files but as of now, running the cleaner for a whole
+      day (with MIN_AGE of 1 month and getting the currently clean-able posts to ~0)
+      on my personal instance of 2 MAU the Backblaze Reports tab says 34k S3 Delete requests, which takes about the half
+      of the total requests pie chart.
 
 # Disclaimer
 
