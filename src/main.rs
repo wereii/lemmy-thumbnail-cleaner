@@ -10,8 +10,6 @@ use url::Url;
 
 use env_logger;
 
-const DEFAULT_DATABASE_URI: &str = "postgres://lemmy@localhost:5432/lemmy";
-const DEFAULT_PICTRS_HOST: &str = "pictrs:8080";
 const DEFAULT_THUMBNAIL_MIN_AGE_MONTHS: u64 = 3;
 const DEFAULT_QUERY_LIMIT: u64 = 300;
 
@@ -109,15 +107,14 @@ fn main() {
     };
 
     let mut pg_client = {
-        let database_uri_env = env::var("DATABASE_URI").unwrap_or_else(|_| {
-            warn!(
-                "DATABASE_URI not set, using default: '{}'",
-                DEFAULT_DATABASE_URI
+        let database_dsn = env::var("POSTGRES_DSN").unwrap_or_else(|_| {
+            error!(
+                "POSTGRES_DSN not set, exiting! (example: 'postgres://user:pass@localhost:5432/lemmy')"
             );
-            DEFAULT_DATABASE_URI.to_string()
+            std::process::exit(1);
         });
 
-        Client::connect(database_uri_env.as_str(), NoTls).unwrap_or_else(|err| {
+        Client::connect(database_dsn.as_str(), NoTls).unwrap_or_else(|err| {
             error!("Failed to connect to database: {}", err);
             std::process::exit(1);
         })
@@ -125,16 +122,16 @@ fn main() {
 
     let pictrs_host = {
         env::var("PICTRS_HOST").unwrap_or_else(|_| {
-            warn!(
-                "PICTRS_HOST not set, using default: '{}'",
-                DEFAULT_PICTRS_HOST
-            );
-            DEFAULT_PICTRS_HOST.to_string()
+            error!("PICTRS_HOST not set, exiting! (example: 'pictrs:8080')");
+            std::process::exit(1);
         })
     };
 
     let http_client = {
-        let pictrs_api_key = env::var("PICTRS_API_KEY").expect("PICTRS_API_KEY not set");
+        let pictrs_api_key = env::var("PICTRS_API_KEY").unwrap_or_else(|_| {
+            error!("PICTRS_API_KEY not set, exiting!");
+            std::process::exit(1);
+        });
         HttpClient::builder()
             .default_header("x-api-token", pictrs_api_key.as_str())
             .build()
@@ -179,6 +176,7 @@ fn main() {
                 .expect("Failed to query database for thumbnails");
 
             let mut processed = 0;
+
             for row in thumbnail_urls_rows {
                 let thumbnail_url = Url::parse(row.get::<usize, String>(0).as_str())
                     .expect("Failed to parse thumbnail URL");
@@ -230,6 +228,7 @@ fn main() {
                     .expect("Database error updating thumbnail");
 
                 // this is awful, but I don't know how to exhaust the iterator without moving it into .for_each or .collect
+                // exhausting is required to get the .rows_affected (could as well count it myself?)
                 while let Some(_) = result_rows_iter
                     .next()
                     .expect("Failed to iterate over results")
@@ -245,12 +244,19 @@ fn main() {
                 }
 
                 processed += 1;
+
                 if processed % 10 == 0 {
                     info!("Processed {} thumbnails", processed);
                 }
             }
             info!("Finished iteration, processed {} thumbnails", processed);
         }
+
+        if check_interval.as_secs() <= 0 {
+            info!("Check interval is 0, exiting");
+            break;
+        }
+
         info!("Sleeping for {}s", check_interval.as_secs());
         thread::sleep(check_interval);
     }
