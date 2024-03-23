@@ -61,8 +61,9 @@ Pict-rs also needs to be configured with api key (`PICTRS__SERVER__API_KEY`), ot
 - `THUMBNAIL_MIN_AGE_MONTHS` - The minimum age of a thumbnail in months before it is considered for deletion.  
   Default is `3` months.
 
-- `CHECK_INTERVAL` - The interval in seconds the program sleeps between checks.
-  Default is `300`. The main use is to give other services breathing room and not keep hitting them constantly with
+- `CHECK_INTERVAL` - The interval in seconds the program sleeps between checks.  
+  Default is `300`.
+  The main use is to give other services breathing room and not keep hitting them constantly with
   requests.
     - **Setting this to `0` will make the program run once and then exit.**
 
@@ -94,16 +95,18 @@ thumbnails old enough (but that depends on your traffic).
 I would personally expect this to run once or twice a day at that point, with query limit of around the 300.
 
 # Notes
+ 
+####  Backblaze B2
 
-- Backblaze B2 - When the bucket lifecycle is configured to `Keep Only Last Version`, the [old versions are not deleted
+When the bucket lifecycle is configured to `Keep Only Last Version`, the [old versions are not deleted
   immediately but hidden instead](https://www.backblaze.com/blog/backblaze-b2-lifecycle-rules/) and deleted after 24h.  
   So don't be surprised if the bucket size doesn't change immediately.
-- Results: TBA
-    - I am still waiting for B2 to clean up the deleted (hidden) files but as of now, running the cleaner for a whole
-      day (with MIN_AGE of 1 month and getting the currently clean-able posts to ~0)
-      on my personal instance of 2 MAU the Backblaze Reports tab says 34k S3 Delete requests, which takes about the half
-      of the total requests pie chart.
 
+### Results:
+
+- My instance of 2 MAU, running for about half a year had about 95k files and 12G of data before running the cleaner.
+- After running the cleaner, fully removing all older then 1 month (and after waiting for almost 2 days) the b2 bucket usage dropped to 57k files and 7.9G
+ 
 # Disclaimer
 
 My rust is _rusty_ so there might be some issues with the code.   
