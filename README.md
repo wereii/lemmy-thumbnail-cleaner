@@ -19,7 +19,7 @@ services:
   # ....
 
   cleaner:
-    image: ghcr.io/wereii/lemmy-thumbnail-cleaner:v0.1.1
+    image: ghcr.io/wereii/lemmy-thumbnail-cleaner:v0.1.2
     #restart: unless-stopped
     environment:
       - RUST_LOG=info
