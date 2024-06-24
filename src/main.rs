@@ -20,7 +20,7 @@ macro_rules! base_thumbnail_query_fmt {
     () => {
         "SELECT {select_target} FROM post \
         WHERE thumbnail_url IS NOT NULL \
-        AND published < now() + interval '{interval} months' \
+        AND published < now() - interval '{interval} months' \
         AND thumbnail_url LIKE '{base_host}%' \
         {query_suffix};"
     };
