@@ -20,7 +20,7 @@ macro_rules! base_thumbnail_query_fmt {
     () => {
         "SELECT {select_target} FROM post \
         WHERE thumbnail_url IS NOT NULL \
-        AND published < now() - interval '{interval} months' \
+        AND published < now() - interval '{months_interval} months' \
         AND thumbnail_url LIKE '{base_host}%' \
         {query_suffix};"
     };
@@ -158,7 +158,7 @@ fn main() {
     let count_query = format!(
         base_thumbnail_query_fmt!(),
         select_target = "COUNT(*)",
-        interval = thumbnail_min_age_months,
+        months_interval = thumbnail_min_age_months,
         base_host = instance_host_url.as_str(),
         query_suffix = "",
     );
@@ -166,7 +166,7 @@ fn main() {
     let thumbnail_query = format!(
         base_thumbnail_query_fmt!(),
         select_target = "thumbnail_url",
-        interval = thumbnail_min_age_months,
+        months_interval = thumbnail_min_age_months,
         base_host = instance_host_url.as_str(),
         query_suffix = "LIMIT ".to_owned() + query_limit.to_string().as_str() + " ;",
     );
