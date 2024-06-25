@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-ARG RUST_VERSION=1.76
+ARG RUST_VERSION=1.79
 ARG CARGO_BUILD_FEATURES=default
 ARG RUST_RELEASE_MODE=debug
 
@@ -40,8 +40,8 @@ RUN --mount=type=cache,target=/lemmy-thumbnail-cleaner/target set -ex; \
 # amd64 base runner
 FROM ${AMD_RUNNER_IMAGE} AS runner-linux-amd64
 
-# Add system packages that are needed: federation needs CA certificates, curl can be used for healthchecks
-RUN apt update && apt install -y libssl-dev libpq-dev ca-certificates curl
+# libpq-dev is required for the postgresql client, others are kept for the possible ssl support
+RUN apt update && apt install -y libpq-dev ca-certificates libssl-dev
 
 COPY --from=build-amd64 --chmod=0755 /lemmy/lemmy-thumbnail-cleaner /usr/local/bin
 
@@ -49,10 +49,8 @@ COPY --from=build-amd64 --chmod=0755 /lemmy/lemmy-thumbnail-cleaner /usr/local/b
 # Final image that use a base runner based on the target OS and ARCH
 FROM runner-${TARGETOS}-${TARGETARCH}
 
-#LABEL org.opencontainers.image.authors="The Lemmy Authors"
-#LABEL org.opencontainers.image.source="https://github.com/LemmyNet/lemmy"
-#LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
-#LABEL org.opencontainers.image.description="A link aggregator and forum for the fediverse"
+LABEL org.opencontainers.image.source="https://github.com/wereii/lemmy-thumbnail-cleaner"
+LABEL org.opencontainers.image.licenses="MIT"
 
 ARG UNAME
 ARG GID
@@ -63,5 +61,3 @@ RUN groupadd -g ${GID} -o ${UNAME} && \
 USER $UNAME
 
 ENTRYPOINT ["lemmy-thumbnail-cleaner"]
-EXPOSE 8536
-STOPSIGNAL SIGTERM
