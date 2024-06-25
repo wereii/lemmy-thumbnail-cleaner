@@ -3,12 +3,14 @@ name = "lemmy-thumbnail-cleaner"
 version = "0.1.0"
 edition = "2021"
 
+[profile.dev]
+opt-level = 1
 
 [features]
 default = []
 
 [dependencies]
-isahc = "1.7.2"
+isahc = { version = "1.7.2", default-features = false, features = ["static-curl", "text-decoding"] }
 postgres = "0.19.7"
 url = "2.5.2"
 env_logger = "0.11.3"
