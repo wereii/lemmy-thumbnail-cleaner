@@ -168,7 +168,7 @@ fn main() {
         select_target = "thumbnail_url",
         months_interval = thumbnail_min_age_months,
         base_host = instance_host_url.as_str(),
-        query_suffix = "LIMIT ".to_owned() + query_limit.to_string().as_str() + " ;",
+        query_suffix = format!("ORDER BY published ASC LIMIT {}", query_limit),
     );
 
     loop {
