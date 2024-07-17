@@ -1,4 +1,12 @@
+> [!CAUTION]
+> 🛑 **DO NOT USE LTC** - There is unresolved security issue, see https://github.com/wereii/lemmy-thumbnail-cleaner/issues/10
+
+
 # Lemmy Thumbnail Cleaner
+
+
+
+
 
 This is a simple program to remove old thumbnails from [pict-rs](https://git.asonix.dog/asonix/pict-rs)
 and [lemmy](https://github.com/LemmyNet/lemmy).
