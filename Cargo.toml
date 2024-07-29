@@ -13,6 +13,6 @@ default = []
 isahc = { version = "1.7.2", default-features = false, features = ["static-curl", "text-decoding"] }
 postgres = "0.19.7"
 url = "2.5.2"
-env_logger = "0.11.3"
+env_logger = "0.11.5"
 log = "0.4.21"
 
